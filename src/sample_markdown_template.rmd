@@ -1,0 +1,112 @@
+---
+title: "Distribution of variables for sample_template"
+author: "European Genome Archive"
+date:  print(currentDate)
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r required_libraries, include = FALSE,echo=FALSE }
+library(ggplot2)
+library(knitr)
+library(reshape2)
+library(data.table)
+library(VennDiagram)
+```
+
+```{r read_data , echo=FALSE }
+sample_metrics<- read.delim("../../data/sample_template/analysis/sample_metrics", header = TRUE, sep = "\t")
+events_filtered<- read.delim("../../data/sample_template/analysis/number_events_sv", header = TRUE, sep = "\t")
+sv_size<-read.delim("../data/../sample_template/analysis/size_distribution_events", header = TRUE, sep = "\t")
+sv_size_discovered<-read.delim("../../data/sample_template/analysis/sv_size_discovered", header = TRUE, sep = "\t")
+sv_annotation<-read.delim("../data/../sample_template/analysis/annotation_counts", header = TRUE, sep = "\t")
+```
+
+
+# Sample metrics
+
+```{r family_metrics , echo=FALSE }
+kable(sample_metrics)
+```
+
+## Common Events
+
+```{r venn ,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,results='hide'}
+# move to new plotting page
+grid.newpage()
+  
+# create Venn diagram with four sets
+draw.quad.venn(area1=72, area2=86, area3=50, 
+               area4 =52, n12=44, n23=38, n13=27, 
+               n14= 32,n24=32, n34=20, n123=18, 
+               n124=17, n234=13, n134=11, n1234=6, 
+              category=c("Manta","Delly","Lumpy","Gridss"),
+               col="Green",fill=c("Red","Pink","Blue","Orange"),lty="dashed")
+```
+
+## Number of ascertained Structural Variant events by sample
+
+In this figure we observe the total number of ascertained events, in the Y axis, labelled Count of ascertained Structural Variants, for the sample, in the X axis, labelled sample.
+
+```{r total_events_unfiltered_SV, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+ggplot (events_filtered, aes(x=SAMPLE,y=TOTAL, fill=SV))+
+  geom_bar(stat='identity', position='stack') + 
+  geom_text(aes(label=TOTAL), position=position_dodge(width=0.9), vjust=-0.25)+
+  xlab("Sample")+
+  ylab("Count of ascertained Structural Variants")+
+  labs(title = "Number of ascertained events per sample")
+```
+
+
+## Structural Variant Size Distribution
+
+In this figure we observe the size distribution of ascertained SVs.
+
+```{r size_distribution_all_samples ,echo=FALSE, warning=FALSE ,message=FALSE,error=FALSE}
+ggplot(sv_size, aes(x=SAMPLE, y=SIZE,fill=SV)) +
+  scale_y_continuous(trans='log10',breaks=c(10,100,1000,10000,100000,1000000,10000000,100000000),labels = c("10bp","100bp","1k","10k","100K","1MB","10MB","100MB"))+
+  geom_boxplot(notch=TRUE)+
+  xlab("Sample")+
+  ylab("Ascertained Strucutral Variant Size")+
+  labs(title = "Structural Variant Size Distribution (bin width is uniform in log-scale)")
+```
+
+## Distribution of Discovered Events with the Structural Variant Size Across the Genome
+
+In this figure we observe the number of events, in the Y axis, labelled structural variant discovered, with the structural variant size, in the X axis, labelled structural variant size.
+
+```{r sv_number_size, echo=FALSE, warning=FALSE ,message=FALSE,error=FALSE}
+   ggplot(sv_size_discovered, aes(x=SIZE, y=COUNT)) +
+   geom_line(aes(color=SV))+
+   coord_cartesian(xlim = c(0,500)) + scale_x_continuous(breaks=c(50,100,300)) +
+   xlab("Strucutral Variant Size")+
+   ylab("Structural Variant Discovered")+
+   labs(title = "Structural Variant Size Distribution by strucutral Variant Discovered")
+```
+
+## SV Annotation
+
+```{r sv_annotation, echo=FALSE, warning=FALSE ,message=FALSE,error=FALSE}
+ggplot (sv_annotation, aes(x=EFFECT,y=COUNT))+
+  geom_bar(stat='identity', position='stack') + 
+  # scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+  #theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  #geom_text(aes(label=TOTAL), position=position_dodge(width=0.9), vjust=-0.25)+
+  xlab("Count")+
+  ylab("Effect")+
+  labs(title = "Annotation",subtitle = "Snpeff DB GRCh37.75")+
+  theme(legend.position='right')
+```
+
+## Acknowledgements
+
+---
+Kuzniar A, Maassen J, Verhoeven S, Santuari L, Shneider C, Kloosterman WP, de Ridder J. sv-callers: a highly portable parallel workflow for structural variant detection in whole-genome sequence data. PeerJ. 2020 Jan 6;8:e8214. doi: 10.7717/peerj.8214. PMID: 31934500; PMCID: PMC6951283.
+---

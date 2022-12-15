@@ -1,158 +1,74 @@
 #!/usr/bin/env bash
 
-##################
-## Create sample folder
-##################
+#####################
+## Pull data
+#####################
 
-mkdir -p ../data/$1 ../data/$1/analysis ../data/$1/delly_out ../data/$1/manta_out ../data/$1/gridss_out ../data/$1/lumpy_out
+bash pull_data.sh $1
 
-################################
-## Pull vcf data from AE01
-#################################
+######################
+## Post-Processing data
+#######################
 
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/$1/all.vcf  ../data/$1/analysis/all.vcf
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/$1/lumpy_out/lumpy.vcf  ../data/$1/lumpy_out/lumpy.vcf 
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/$1/manta_out/manta.vcf  ../data/$1/manta_out/manta.vcf 
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/$1/delly_out/delly.vcf  ../data/$1/delly_out/delly.vcf 
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/$1/gridss_out/gridss.vcf ../data/$1/gridss_out/gridss.vcf
-
-##############################
-## Pull statistics from AE01
-##############################
-
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/statistics/$1.flagstat.statistics  ../data/$1/analysis/$1.flagstat.statistics
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/statistics/$1.stats  ../data/$1/analysis/$1.stats
-scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/statistics/$1.depth_of_coverage  ../data/$1/analysis/$1.depth_of_coverage
-
-##########################
-## Post-Processing steps
-##########################
-
-##########################
-## Filter PASS flag
-##########################
-
-#bcftools view -f PASS ../data/$1/lumpy_out/lumpy.vcf > ../data/$1/analysis/lumpy.pass.vcf
-#bcftools view -f PASS ../data/$1/manta_out/manta.vcf > ../data/$1/analysis/manta.pass.vcf
-#bcftools view -f PASS ../data/$1/lumpy_out/delly.vcf > ../data/$1/analysis/delly.pass.vcf
-#bcftools view -f PASS ../data/$1/gridss_out/gridss.vcf > ../data/$1/analysis/gridss.passvcf
-
-##########################
-## Filter decoy sequences variants
-##########################
-
-#bcftools view ../data/$1/analysis/lumpy.pass.vcf  | grep -v "#" | grep -v "hs37d5" > ../data/$1/analysis/lumpy.pass.decoy.vcf
-#bcftools view ../data/$1/analysis/manta.pass.vcf  | grep -v "#" | grep -v "hs37d5" > ../data/$1/analysis/manta.pass.decoy.vcf
-#bcftools view ../data/$1/analysis/delly.pass.vcf  | grep -v "#" | grep -v "hs37d5" > ../data/$1/analysis/delly.pass.decoy.vcf
-#bcftools view ../data/$1/analysis/gridss.pass.vcf  | grep -v "#" | grep -v "hs37d5" > ../data/$1/analysis/gridss.pass.decoy.vcf
-
-##########################
-## Filter Genotype unknown or ref-ref
-##########################
-
-
-
-##########################
-## Filter Read depth 10 < SV < 1000
-##########################
-
-
-
-##########################
-## Filter size 50 < SV < 10000
-##########################
-
+bash post_processing.sh $1
 
 ###########################
-## Get Coverage and Insert size 
+## Coverage and Insert size 
 ###########################
 
-cat ../data/$1/analysis/$1.depth_of_coverage | cut -d"=" -f2 | xargs  > ../data/$1/analysis/depth_coverage
-cat ../data/$1/analysis/$1.stats |  grep "insert size average" |  cut -d":" -f2 | xargs  > ../data/$1/analysis/insert_size
+bash coverage_insert_size.sh $1
 
-echo "$1" > ../data/$1/analysis/sample_id
+###########################
+## Merge SV 
+###########################
 
-paste  ../data/$1/analysis/sample_id ../data/$1/analysis/depth_coverage ../data/$1/analysis/insert_size  > ../data/$1/analysis/join_depth_coverage_insert_size
-
-cat ../data/sample_metrics.header ../data/$1/analysis/join_depth_coverage_insert_size > ../data/$1/analysis/sample_metrics
-
-rm ../data/$1/analysis/join_depth_coverage_insert_size 
-rm ../data/$1/analysis/depth_coverage
-rm ../data/$1/analysis/insert_size
-rm ../data/$1/analysis/$1.flagstat.statistics
-rm ../data/$1/analysis/$1.stats
-rm ../data/$1/analysis/$1.depth_of_coverage
-rm ../data/$1/analysis/sample_id
-
-# ###########################
-# ## Merge SV 
-# ###########################
-
-echo "../data/$1/lumpy_out/lumpy.vcf" >> ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss 
-echo "../data/$1/manta_out/manta.vcf" >> ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss
-echo "../data/$1/lumpy_out/lumpy.vcf" >> ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss 
-echo "../data/$1/gridss_out/gridss.vcf" >> ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss
-
-# by default sv-callers output (all.vcf) is the sum of the 4 different tools 
-# here, we create a new merged vcf with the following rules : 
-
-# Number supporting callers - 2,3 and 4
-# SV Distance - 100
-# Same strain - N  
-# Min SV size - 50
-
-../bin/SURVIVOR/Debug/./SURVIVOR merge ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss 100 2 1 1 1 50 ../data/$1/analysis/2.vcf
-../bin/SURVIVOR/Debug/./SURVIVOR merge ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss 100 3 1 1 1 50 ../data/$1/analysis/3.vcf
-../bin/SURVIVOR/Debug/./SURVIVOR merge ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss 100 4 1 1 1 50 ../data/$1/analysis/4.vcf
-
-rm ../data/$1/analysis/sample_files_manta_delly_lumpy_gridss
+bash merge_sv.sh $1
 
 ############################
-### ANNOTATIONS
+### Annotations
 ############################
 
-java -Xmx4g -jar ../bin/snpEff/snpEff.jar -v GRCh37.75 ../data/$1/analysis/all.vcf > ../data/$1/analysis/all.annot.vcf
-
-cat ../data/$1/analysis/all.annot.vcf | grep -v "#" | cut -f8 | cut -d";" -f11 | cut -d"|" -f2 | sort | uniq -c | sort -nr | sed -e 's/^[[:space:]]*//'  | awk -v OFS="\t" '$1=$1' | awk -v FS='\t' -v OFS='\t' '{$2=$2!=""?$2:"NA"}1'  >   ../data/$1/analysis/annotation_counts_no_header 
-cat ../data/annotations.header ../data/$1/analysis/annotation_counts_no_header > ../data/$1/analysis/annotation_counts
-
-rm ../data/$1/analysis/annotation_counts_no_header
+bash annotations.sh $1
 
 #########################
 ## Number of events per sample
 #########################
 
-cat ../data/$1/analysis/all.vcf  | grep -v "#"  | cut -f8 | cut -d";" -f4 | cut -d "=" -f2 | sort | uniq -c |   sed -e 's/^[[:space:]]*//'  | awk -v OFS="\t" '$1=$1' | sed "s/^/$1\t/g" > ../data/$1/analysis/number_events_sv_no_header
-cat ../data/number_events_sv.header ../data/$1/analysis/number_events_sv_no_header > ../data/$1/analysis/number_events_sv
-
-rm ../data/$1/analysis/number_events_sv_no_header
+bash number_events.sh $1
 
 #########################
 ## Size distribution of events
 #########################
 
-cat ../data/$1/analysis/all.vcf  | grep -v "#"  | cut -f8 | cut -d";" -f3,4 | sed s/SVLEN=//g |  sed s/SVTYPE=//g | sed s/-//g | sed 's/;/\t/g' | sed "s/^/$1\t/g" > ../data/$1/analysis/size_distribution_events_no_header
-cat ../data/size_distribution_events.header ../data/$1/analysis/size_distribution_events_no_header > ../data/$1/analysis/size_distribution_events
-
-rm ../data/$1/analysis/size_distribution_events_no_header
+bash size_distribution_events.sh $1
 
 #########################
 ## SV Size Number 
 #########################
 
-cat ../data/$1/analysis/size_distribution_events |  tail -n +2 | sort | uniq -c |  sort -nr | sed 's/^ *//g' | sed 's/ /'$'\t''/' > ../data/$1/analysis/sv_size_discovered_no_header
-cat ../data/size_count_distribution_events.header ../data/$1/analysis/sv_size_discovered_no_header >  ../data/$1/analysis/sv_size_discovered
-
-rm ../data/$1/analysis/sv_size_discovered_no_header
+bash sv_size_number.sh $1
 
 #########################
 ## Number of events per tool
 #########################
 
-cat ../data/$1/delly_out/delly.vcf  | grep -v "#" | wc -l > ../data/$1/analysis/number_events_delly
-cat ../data/$1/lumpy_out/lumpy.vcf  | grep -v "#" |  wc -l > ../data/$1/analysis/number_events_lumpy
-cat ../data/$1/manta_out/manta.vcf  | grep -v "#" | wc -l > ../data/$1/analysis/number_events_manta
-cat ../data/$1/gridss_out/gridss.vcf  | grep -v "#" | wc -l > ../data/$1/analysis/number_events_gridss
+bash number_events_tool.sh $1
+
+#########################
+## GENERATE R MARKDOWN
+#########################
+
+sed  "s/sample_template/$1/g" < sample_markdown_template.rmd > ../results/$1.rmd
+
+####################
+## GENERATE HTML FROM MARKDOWN
+#####################
+
+cd ../results/
+
+Rscript -e "Sys.setenv(RSTUDIO_PANDOC='/usr/lib/rstudio/bin/pandoc'); rmarkdown::render('"$1".rmd')"
+
+
 
 #########################
 ## Event Intersection
@@ -232,18 +148,6 @@ cat ../data/$1/gridss_out/gridss.vcf  | grep -v "#" | wc -l > ../data/$1/analysi
 ## PULL GNOMAD DB  https://gnomad.broadinstitute.org/downloads
 
 #bedtools intersect -wa -wb -a ../data/$1/all.annot.bed -b ../data/gnomad_v2.1_sv.sites.bed -filenames
-
-#########################
-## GENERATE R MARKDOWN
-#########################
-
-sed  "s/sample_template/$1/g" < sample_markdown_template.rmd > $1.rmd
-
-####################
-## GENERATE HTML FROM MARKDOWN
-#####################
-
-Rscript -e "Sys.setenv(RSTUDIO_PANDOC='/usr/lib/rstudio/bin/pandoc'); rmarkdown::render('"$1".rmd')"
 
 
 
