@@ -6,11 +6,17 @@
 
 bash pull_data.sh $1
 
+####################
+## Index vcf
+####################
+
+bash index_vcf.sh $1
+
 ######################
 ## Post-Processing data
 #######################
 
-bash post_processing.sh $1
+#bash post_processing.sh $1
 
 ###########################
 ## Coverage and Insert size 
@@ -28,13 +34,13 @@ bash merge_sv.sh $1
 ### Annotations
 ############################
 
-bash annotations.sh $1
+#bash annotations.sh $1
 
 #########################
 ## Number of events per sample
 #########################
 
-bash number_events.sh $1
+bash number_events_sample.sh $1
 
 #########################
 ## Size distribution of events

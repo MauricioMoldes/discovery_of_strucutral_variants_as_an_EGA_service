@@ -1,3 +1,12 @@
+############################
+## Verifies if folder exists, deletes
+############################
+
+if [ -d "../data/$1" ] 
+then
+   rm -r ../data/$1 # removes sample folder
+else
+    
 ##################
 ## Create sample folder
 ##################
@@ -22,3 +31,4 @@ scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-
 scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/statistics/$1.stats  ../data/$1/analysis/$1.stats
 scp -oProxyCommand="ssh -W %h:%p mmoldes@gw-in.ega.crg.eu" devers@apps-executor-01u:/vault/mauricio/bio_team/SV/sv-callers/workflow/data/bam/statistics/$1.depth_of_coverage  ../data/$1/analysis/$1.depth_of_coverage
 
+fi

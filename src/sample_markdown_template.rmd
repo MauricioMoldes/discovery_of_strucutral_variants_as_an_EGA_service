@@ -22,11 +22,11 @@ library(VennDiagram)
 ```
 
 ```{r read_data , echo=FALSE }
-sample_metrics<- read.delim("../../data/sample_template/analysis/sample_metrics", header = TRUE, sep = "\t")
-events_filtered<- read.delim("../../data/sample_template/analysis/number_events_sv", header = TRUE, sep = "\t")
-sv_size<-read.delim("../data/../sample_template/analysis/size_distribution_events", header = TRUE, sep = "\t")
-sv_size_discovered<-read.delim("../../data/sample_template/analysis/sv_size_discovered", header = TRUE, sep = "\t")
-sv_annotation<-read.delim("../data/../sample_template/analysis/annotation_counts", header = TRUE, sep = "\t")
+sample_metrics<- read.delim("../data/sample_template/analysis/sample_metrics", header = TRUE, sep = "\t")
+events_filtered<- read.delim("../data/sample_template/analysis/number_events_sv", header = TRUE, sep = "\t")
+sv_size<-read.delim("../data/sample_template/analysis/size_distribution_events", header = TRUE, sep = "\t")
+sv_size_discovered<-read.delim("../data/sample_template/analysis/sv_size_discovered", header = TRUE, sep = "\t")
+#sv_annotation<-read.delim("../data/sample_template/analysis/annotation_counts", header = TRUE, sep = "\t")
 ```
 
 
@@ -85,7 +85,8 @@ In this figure we observe the number of events, in the Y axis, labelled structur
 ```{r sv_number_size, echo=FALSE, warning=FALSE ,message=FALSE,error=FALSE}
    ggplot(sv_size_discovered, aes(x=SIZE, y=COUNT)) +
    geom_line(aes(color=SV))+
-   coord_cartesian(xlim = c(0,500)) + scale_x_continuous(breaks=c(50,100,300)) +
+   #coord_cartesian(xlim = c(0,10000)) + scale_x_continuous(breaks=c(50,100,300,1000,10000)) +
+   scale_x_continuous(trans='log10',breaks=c(10,100,1000,10000,100000,1000000,10000000,100000000),labels = c("10bp","100bp","1k","10k","100K","1MB","10MB","100MB")) +
    xlab("Strucutral Variant Size")+
    ylab("Structural Variant Discovered")+
    labs(title = "Structural Variant Size Distribution by strucutral Variant Discovered")
@@ -94,15 +95,15 @@ In this figure we observe the number of events, in the Y axis, labelled structur
 ## SV Annotation
 
 ```{r sv_annotation, echo=FALSE, warning=FALSE ,message=FALSE,error=FALSE}
-ggplot (sv_annotation, aes(x=EFFECT,y=COUNT))+
-  geom_bar(stat='identity', position='stack') + 
+#ggplot (sv_annotation, aes(x=EFFECT,y=COUNT))+
+#  geom_bar(stat='identity', position='stack') + 
   # scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
   #theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
   #geom_text(aes(label=TOTAL), position=position_dodge(width=0.9), vjust=-0.25)+
-  xlab("Count")+
-  ylab("Effect")+
-  labs(title = "Annotation",subtitle = "Snpeff DB GRCh37.75")+
-  theme(legend.position='right')
+#  xlab("Count")+
+#  ylab("Effect")+
+#  labs(title = "Annotation",subtitle = "Snpeff DB GRCh37.75")+
+#  theme(legend.position='right')
 ```
 
 ## Acknowledgements
