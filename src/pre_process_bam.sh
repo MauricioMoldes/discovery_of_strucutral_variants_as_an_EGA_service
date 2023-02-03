@@ -75,7 +75,7 @@ echo "End get quality threshold"
 
 SORT_COORDINATE=$(/iso/tmp/samtoolsINST-1.3.1/bin/samtools view --threads 35 -H ${fullname} | grep "^@HD" | grep "coordinate")
 
-MARK_DUPLICATES=$(/iso/tmp/samtoolsINST-1.3.1/bin/samtools view --threads 35 -f 0x400 ${fullname}) 
+MARK_DUPLICATES=$(/iso/tmp/samtoolsINST-1.3.1/bin/samtools view --threads 35 -f 0x400 ${fullname} | head -n1) 
 
 if [ ! -z "$SORT_COORDINATE" ];
 then
