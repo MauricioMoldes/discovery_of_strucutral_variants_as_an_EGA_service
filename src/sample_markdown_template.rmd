@@ -26,6 +26,7 @@ sample_metrics<- read.delim("../data/sample_template/analysis/sample_metrics", h
 events_filtered<- read.delim("../data/sample_template/analysis/number_events_sv", header = TRUE, sep = "\t")
 sv_size<-read.delim("../data/sample_template/analysis/size_distribution_events", header = TRUE, sep = "\t")
 sv_size_discovered<-read.delim("../data/sample_template/analysis/sv_size_discovered", header = TRUE, sep = "\t")
+sv_type_chr<-read.delim("../data/sample_template/analysis/sv_by_chr", header = TRUE, sep = "\t")
 #sv_annotation<-read.delim("../data/sample_template/analysis/annotation_counts", header = TRUE, sep = "\t")
 ```
 
@@ -58,12 +59,26 @@ In this figure we observe the total number of ascertained events, in the Y axis,
 ```{r total_events_unfiltered_SV, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
 ggplot (events_filtered, aes(x=SAMPLE,y=TOTAL, fill=SV))+
   geom_bar(stat='identity', position='stack') + 
-  geom_text(aes(label=TOTAL), position=position_dodge(width=0.9), vjust=-0.25)+
+  geom_text(aes(label=TOTAL), size = 3, position = position_stack(vjust = 0.5))+
   xlab("Sample")+
   ylab("Count of ascertained Structural Variants")+
   labs(title = "Number of ascertained events per sample")
 ```
 
+
+## Number of ascertained Structural Variant events by sample by chromossome
+
+In this figure we observe the total number of ascertained events, in the Y axis, labelled Count of ascertained Structural Variants, for the sample, in the X axis, labelled sample.
+
+```{r total_events_unfiltered_SV_chr, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+ggplot (sv_type_chr, aes(x=CHR,y=TOTAL, fill=SV))+
+  geom_bar(stat='identity', position='stack') + 
+  geom_text(aes(label=TOTAL), size = 3, position = position_stack(vjust = 0.5))+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  xlab("Sample")+
+  ylab("Count of ascertained Structural Variants")+
+  labs(title = "Number of ascertained events per sample")
+```
 
 ## Structural Variant Size Distribution
 

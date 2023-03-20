@@ -10,13 +10,13 @@ bash pull_data.sh $1
 ## Index vcf
 ####################
 
-bash index_vcf.sh $1
+#bash index_vcf.sh $1
 
 ######################
 ## Post-Processing data
 #######################
 
-#bash post_processing.sh $1
+bash post_processing.sh $1
 
 ###########################
 ## Coverage and Insert size 
@@ -28,7 +28,7 @@ bash coverage_insert_size.sh $1
 ## Merge SV 
 ###########################
 
-bash merge_sv.sh $1
+#bash merge_sv.sh $1
 
 ############################
 ### Annotations
@@ -41,6 +41,12 @@ bash merge_sv.sh $1
 #########################
 
 bash number_events_sample.sh $1
+
+##########################
+## Number of events per chromossome 
+##########################
+
+bash number_events_chromossome.sh $1
 
 #########################
 ## Size distribution of events
