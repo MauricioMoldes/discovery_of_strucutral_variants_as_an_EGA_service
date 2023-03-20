@@ -32,11 +32,11 @@ Version="v0.0.1"
 # Default variables values
 
 BAM_FILE="" # Path to input bam file
-BQSR=false # True = execute BQSR function, False = no execution BQSR.
-FORCE_SORT=false # Force sort bam file by coordinates.
-FORCE_MARK_DUPLICATES=false # Force mark duplicates the bam file.
-RM_SORT_MARKED_FILE=false # Remove the intermidate file 'sort.marked_duplicates'. Only set 'True' if the 'BQSR' is also set True.
-INITIAL_INFO=true # Get initial information of the initial bam file (True).
+BQSR=false # True = Execute BQSR function, False = no execution BQSR.
+FORCE_SORT=true # True = Force sort bam file by coordinates.
+FORCE_MARK_DUPLICATES=true # True = Force mark duplicates the bam file.
+RM_SORT_MARKED_FILE=false # True = Remove the intermidate file 'sort.marked_duplicates'. Only set 'True' if the 'BQSR' is also set True.
+INITIAL_INFO=true # True = Get initial information of the initial bam file (True).
 FINAL_STATISTICS=true # Get final statistics of the final bam file, and comparison with the initial bam file (True).
 TMP_DIR="" # Set the path to the temprorary files directory
 RM_TMP_FILES=true # Set 'true' to remove the temporary files. False no remove.
@@ -76,9 +76,9 @@ usage() {
 
 	    -Q/--BQSR --- If TRUE, BQSR will be performed (ie. true/false). Default 'false'.
 	    
-	    -S/--FORCE_SORT_COORDINATES --- Force sort the bam file by coordinates (ie. true/false). Default 'false'.
+	    -S/--FORCE_SORT_COORDINATES --- Force sort the bam file by coordinates (ie. true/false). Default 'true'.
 	    
-	    -M/--FORCE_MARK_DUPLICATES --- Force mark the duplicates of the bam file. Default 'false'. 
+	    -M/--FORCE_MARK_DUPLICATES --- Force mark the duplicates of the bam file. Default 'true'. 
 	    
 	    -r/--rm_sort_marked_file --- Remove the sorted and marked bam file when you perform the BQSR as a final step (ie. true/false). Default 'false'.
 	    
@@ -307,6 +307,8 @@ if [[ $multi_sample -gt 1 ]];then
     echo "# SPLIT SAMPLE LOGS FILE FOR ${filename}.bam" &>> ${enddir}/${filename}_split_sample.log	
     echo "The input file is a multi-sample bam file" &>> ${enddir}/${filename}_split_sample.log
     echo "Splitting the bam file by samples" &>> ${enddir}/${filename}_split_sample.log
+    
+    # Split reads function
     gatk SplitReads -I ${fullname} -O ${enddir} --split-sample true --create-output-bam-index false --read-validation-stringency LENIENT --tmp-dir ${TMP_DIR} --add-output-sam-program-record true &>> ${enddir}/${filename}_split_sample.log
     
     # List of samples
@@ -364,7 +366,7 @@ echo "# PROCESSING FILE: ${filename}.bam" # Print to the log file
 if [ "${CLEAN_SAM,,}" = "true" ];
 then
     echo "Start CleanSam"
- 
+     
     gatk CleanSam --INPUT ${fullname} --OUTPUT ${enddir}/${filename}.bam --VALIDATION_STRINGENCY LENIENT --TMP_DIR ${TMP_DIR}
     
     echo "CleanSam done"
