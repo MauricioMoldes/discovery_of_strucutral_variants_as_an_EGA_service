@@ -33,8 +33,8 @@ Version="v0.0.1"
 
 BAM_FILE="" # Path to input bam file
 BQSR=false # True = Execute BQSR function, False = no execution BQSR.
-FORCE_SORT=true # True = Force sort bam file by coordinates.
-FORCE_MARK_DUPLICATES=true # True = Force mark duplicates the bam file.
+FORCE_SORT=false # True = Force sort bam file by coordinates.
+FORCE_NOT_MARK_DUPLICATES=false # True = Force not to perform mark duplicates the bam file.
 RM_SORT_MARKED_FILE=false # True = Remove the intermidate file 'sort.marked_duplicates'. Only set 'True' if the 'BQSR' is also set True.
 INITIAL_INFO=true # True = Get initial information of the initial bam file (True).
 FINAL_STATISTICS=true # Get final statistics of the final bam file, and comparison with the initial bam file (True).
@@ -45,15 +45,10 @@ REFERENCE_GENOME="" # Path to the reference genome of the input bam file
 CLEAN_SAM=false # To execute the CleanSam fuction (true). Default false.
 VALIDATE_SAM=false # To execute the ValidateSamFile fuction (true). Default false.
 
-## Not applied
-#POST_BQSR_ANALYSIS="FALSE"
-#HQ_FILTER_STEP="FALSE"
-#HQ_THRESHOLD=20
-
 ##############################################################
 
-# Control errors (Add -e to exit with non-zero errors. Add -x to debug)
-set -uoh pipefail
+# Control errors (Add -e to exit with non-zero errors. Add -x to debug. Add -o pipefail, the returned error code of a function will be used as the return code of the whole pipeline. Add -u to traces the unset variables. Add -h to save the location where the command has been used.)
+set -uo pipefail
 
 # Sets the locale environment variable to "C" in the Bash shell
 export LC_ALL=C
@@ -76,9 +71,9 @@ usage() {
 
 	    -Q/--BQSR --- If TRUE, BQSR will be performed (ie. true/false). Default 'false'.
 	    
-	    -S/--FORCE_SORT_COORDINATES --- Force sort the bam file by coordinates (ie. true/false). Default 'true'.
+	    -S/--FORCE_SORT_COORDINATES --- Force sort the bam file by coordinates (ie. true/false). Default 'false'.
 	    
-	    -M/--FORCE_MARK_DUPLICATES --- Force mark the duplicates of the bam file. Default 'true'. 
+	    -M/--FORCE_NOT_MARK_DUPLICATES --- Force not performing mark the duplicates of the bam file. The user has to be sure that the BAM file has the duplicates already marked by the MarkDuplicates                                                (GATK) tool (version gatk-4.2.6.0). Default 'false'. 
 	    
 	    -r/--rm_sort_marked_file --- Remove the sorted and marked bam file when you perform the BQSR as a final step (ie. true/false). Default 'false'.
 	    
@@ -115,10 +110,10 @@ while [[ "$#" -gt 0 ]]; do
       if ! test -f "$BAM_FILE"; then
         
 	  # Check if the file is a '.bam'
-          if [ "${fullname: -4}" = ".bam" ];
+          if [ "${fullname:-4}" = ".bam" ];
           then
 
-              header=$(/iso/tmp/samtoolsINST-1.3.1/bin/samtools view --threads 35 -H ${fullname})
+              header=$(samtools view --threads 35 -H ${fullname} || :)
               #body=$(/iso/tmp/samtoolsINST-1.3.1/bin/samtools view --threads 35 ${fullname} | head -n1)
 
               if [ -z "${header}" ];
@@ -152,9 +147,9 @@ while [[ "$#" -gt 0 ]]; do
       fi
       shift
       ;;
-    -M|--FORCE_MARK_DUPLICATES) FORCE_MARK_DUPLICATES="$2";
-      if ! [[ "${FORCE_MARK_DUPLICATES,,}" == "true" ]] && ! [[ "${FORCE_MARK_DUPLICATES,,}" == "false" ]]; then   # if $FORCE_MARK_DUPLICATES is not boolean:
-        echo "ERROR: FORCE_MARK_DUPLICATES (-M) must be a boolean, true/false."
+    -M|--FORCE_NOT_MARK_DUPLICATES) FORCE_NOT_MARK_DUPLICATES="$2";
+      if ! [[ "${FORCE_NOT_MARK_DUPLICATES,,}" == "true" ]] && ! [[ "${FORCE_NOT_MARK_DUPLICATES,,}" == "false" ]]; then   # if $FORCE_NOT_MARK_DUPLICATES is not boolean:
+        echo "ERROR: FORCE_NOT_MARK_DUPLICATES (-M) must be a boolean, true/false."
         exit_abnormal
       fi
       shift
@@ -286,12 +281,28 @@ TIME=$(date +%Y%m%d%H%M%S)
 enddir=${filename}_${TIME}
 mkdir -p $enddir
 
-# Create error logs file
+# Create error logs split file
 touch ${enddir}/${filename}_split_sample.log
+LOG_SPLIT_FILE="${enddir}/${filename}_split_sample.log"
+
+# Config parameters for logs (info. https://serverfault.com/questions/103501/how-can-i-fully-log-all-bash-scripts-actions)
+# Set the shell option to exit immediately on error
+set -e
+
+# Function to display error message and exit with non-zero status code
+
+handle_error() {
+  status=$?
+  echo "## ERROR: Command failed with status ${status}. See '${LOG_SPLIT_FILE}'" 
+  exit 1
+}
+
+# Set up trap to call handle_error function on error
+trap 'handle_error' ERR
 
 ###############################################################
 
-echo "##### START PIPELINE #####"
+echo "##### START PIPELINE #####" 
 
 ####################
 ## Check multi-sample bam file
@@ -307,10 +318,12 @@ if [[ $multi_sample -gt 1 ]];then
     echo "# SPLIT SAMPLE LOGS FILE FOR ${filename}.bam" &>> ${enddir}/${filename}_split_sample.log	
     echo "The input file is a multi-sample bam file" &>> ${enddir}/${filename}_split_sample.log
     echo "Splitting the bam file by samples" &>> ${enddir}/${filename}_split_sample.log
-    
-    # Split reads function
+     
+   # Split reads function
+    echo "# Splitting BAM file"
     gatk SplitReads -I ${fullname} -O ${enddir} --split-sample true --create-output-bam-index false --read-validation-stringency LENIENT --tmp-dir ${TMP_DIR} --add-output-sam-program-record true &>> ${enddir}/${filename}_split_sample.log
-    
+    echo "# Splitting of BAM file done. See '${enddir}/${filename}_split_sample.log'"
+
     # List of samples
     find ${enddir} -type f -name "*bam" > ${enddir}/list_of_sample.txt
 
@@ -323,6 +336,9 @@ fi
 if ! [ -s "${enddir}/${filename}_split_sample.log" ]; then
   rm ${enddir}/${filename}_split_sample.log
 fi
+
+# Restart the set -e command
+set +e
 
 ###############################################################
 ###############################################################
@@ -344,13 +360,36 @@ fullname=$(echo $(readlink -f "$sample"))
 INDEX="${fullname}.bai"
 
 # Create error logs file
-touch ${enddir}/${filename}.log
+LOG_FILE="${enddir}/${filename}.log"
 
 # Config parameters for logs (info. https://serverfault.com/questions/103501/how-can-i-fully-log-all-bash-scripts-actions)
+
+# Save original stdout and stderr file descriptors
 exec 3>&1 4>&2
+
+# Set up trap to restore original file descriptors on signal
 trap 'exec 2>&4 1>&3' 0 1 2 3
-exec 1>${enddir}/${filename}.log 2>&1
-echo -e "\n LOGS FILE FOR ${filename}.bam \n"
+
+# Redirect stdout to file.log and stderr to stdout
+exec 1>${LOG_FILE} 2>&1
+
+# Set the shell option to exit immediately on error
+set -e
+
+# Function to display error message and exit with non-zero status code
+handle_error() {
+  status=$?
+  echo "## ERROR: Command failed with status ${status}. See '${LOG_FILE}'" >&3
+  #echo "## ERROR: Command failed with status ${status}. See '${LOG_FILE}'" >&1
+  exit 1
+}
+
+# Set up trap to call handle_error function on error
+trap 'handle_error' ERR
+
+# Title for the log file
+echo -e "\n##### LOGS FILE FOR ${filename}.bam \n"
+
 # Everything below will go to the file '$sample.log':
 # Only work inside the loop (because is inside it)
 # Adding '>&3' to the end of the command, the output goes to the console, not the 'log' file 
@@ -358,10 +397,9 @@ echo -e "\n LOGS FILE FOR ${filename}.bam \n"
 
 ########################
 
-echo "## PROCESSING FILE: ${filename}.bam" >&3 # '>&3' to show to the console
+echo "## PROCESSING FILE: ${filename}.bam" >&3 # '>&3' to show to the console, if not to the log file
 
-echo "# PROCESSING FILE: ${filename}.bam" # Print to the log file
-
+#########################
 # Clean sam (test)
 if [ "${CLEAN_SAM,,}" = "true" ];
 then
@@ -372,6 +410,7 @@ then
     echo "CleanSam done"
 
 fi
+#########################
 
 # Validate Sam file before cleaning
 if [ "${VALIDATE_SAM,,}" = "true" ];
@@ -426,29 +465,63 @@ fi
 if [ "${INITIAL_INFO,,}" = "true" ];
 then
     
-    echo "## START INITIAL INFORMATION" 
+    # Get all PG tags
+    pg_tags=$(samtools view -H ${fullname} | grep '^@PG' || :) # THe '|| :' is a OR condition to add an empty line if the first statement is not accomplished oor is empty
 
-    # Get all PG tags    
-    samtools view -H ${fullname} | grep '^@PG' | head -n1 > ${enddir}/${filename}.pg_tags
+    if [ -n "${pg_tags}" ]; then
+        echo "${pg_tags}" > ${enddir}/${filename}.pg_tags
+    else
+        echo "There is not Program tags (PG tags) in the BAM file" > ${enddir}/${filename}.pg_tags
+    fi 
      
     # Get Mapper
-    # Mapper tool
+    # Mapper bwa tool
     echo "BWA mapper" > ${enddir}/${filename}.mapper
     
     # Mapper
-    samtools view -H ${fullname} | grep '^@PG' | grep -wo bwa | head -n1 >> ${enddir}/${filename}.mapper
+    mapper_bwa=$(samtools view -H ${fullname} | grep '^@PG' | grep -wo bwa | head -n1 || :) 
+    
+    if [ -n "${mapper_bwa}" ]; then
+        echo "${mapper_bwa}" >> ${enddir}/${filename}.mapper
+    else
+        echo "The mapper tool is not BWA or is not in the BAM file" >> ${enddir}/${filename}.mapper
+    fi
 
     # Mapper method
-    samtools view -H ${fullname} | grep '^@PG' | grep bwa | grep -woE 'aln|mem' | head -n1 >> ${enddir}/${filename}.mapper
+    mapper_method=$(samtools view -H ${fullname} | grep '^@PG' | grep bwa | grep -woE 'aln|mem' | head -n1 || :) 
+    
+    if [ -n "${mapper_method}" ]; then
+        echo "${mapper_method}" >> ${enddir}/${filename}.mapper
+    else
+        echo "There is not the BWA mapper method (aln/mem) in the BAM file" >> ${enddir}/${filename}.mapper
+    fi
 
     # Mapper version
-    samtools view -H ${fullname} | grep '^@PG' | grep bwa | grep -E 'aln|mem' | grep -o "VN:.*" | awk '{print $1}' | cut -c4- | head -n1 >> ${enddir}/${filename}.mapper
+    mapper_version=$(samtools view -H ${fullname} | grep '^@PG' | grep bwa | grep -E 'aln|mem' | grep -o "VN:.*" | awk '{print $1}' | cut -c4- | head -n1 || :) 
+    
+    if [ -n "${mapper_version}" ]; then
+        echo "${mapper_version}" >> ${enddir}/${filename}.mapper
+    else
+        echo "There is not the BWA mapper version in the BAM file" >> ${enddir}/${filename}.mapper
+    fi
 
     # Get read groups
-    samtools view -H ${fullname} | grep '^@RG' | grep -o "ID:.*" | cut -f1 > ${enddir}/${filename}.rg_tags
+    rg_tags=$(samtools view -H ${fullname} | grep '^@RG' | grep -o "ID:.*" | cut -f1 || :) 
+
+    if [ -n "${mapper_version}" ]; then
+        echo "${mapper_version}" > ${enddir}/${filename}.rg_tags
+    else
+        echo "There is not Read Group tags (RG tags) in the BAM file" > ${enddir}/${filename}.rg_tags
+    fi
 
     # Get quality threshold
-    samtools view -H ${fullname} | grep '^@PG' | grep bwa | grep -o "\-q.*" | cut -c4- | awk '{print $1}' | head -n1 > ${enddir}/${filename}.quality_threshold
+    quality_threshold=$(samtools view -H ${fullname} | grep '^@PG' | grep bwa | grep -o "\-q.*" | cut -c4- | awk '{print $1}' | head -n1 || :)
+
+    if [ -n "${quality_threshold}" ]; then
+        echo "${quality_threshold}" > ${enddir}/${filename}.quality_threshold
+    else
+        echo "There is not the quality threshold used in the BAM file" > ${enddir}/${filename}.quality_threshold
+    fi
 
     echo "## INITIAL INFORMATION DONE" 
 
@@ -459,7 +532,7 @@ fi
 
 # START OF THE PIPELINE
 
-echo "### START OF THE PIPELINE" 
+echo "## START OF THE PIPELINE" 
 
 #####################
 ### Sort by coordinate (samtools)
@@ -467,16 +540,16 @@ echo "### START OF THE PIPELINE"
 
 # Getting if the bam file is sorted by coordinates
 
-SORT_COORDINATE=$(timeout 5 samtools view -H ${fullname} | grep "^@HD" | grep "coordinate")
+SORT_COORDINATE=$(timeout 5 samtools view -H ${fullname} | grep "^@HD" | grep "coordinate" || :)
 
-if [ -z "$SORT_COORDINATE" ] || [ "${FORCE_SORT,,}" = "true" ];
+if [ -n "$SORT_COORDINATE" ] || [ "${FORCE_SORT,,}" = "true" ];
 then
 
     echo "## START SORT BY COORDINATES" 
     
     # SAMTOOLS SORT
     #samtools sort -m 1500M --threads 35 -T ${TMP_DIR} ${fullname} --output-fmt BAM -o ${enddir}/${filename}.sort.bam
-    samtools sort -T ${TMP_DIR} ${fullname} --output-fmt BAM -o ${enddir}/${filename}.sort.bam
+    samtools sort ${fullname} -m 1500M --threads 35 -T ${TMP_DIR} -o ${enddir}/${filename}.sort.bam
 
     
     # GATK SORT
@@ -499,16 +572,10 @@ fi
 ### Mark Duplicates (bam file ordered by coordinate) and remove duplicates. Use MarkDuplicatesSpark if you want to run it in parallel.
 #####################
 
-# Getting if the bam file is marked by duplicates 
+# Always marked the duplicates if the user is not sure that the BAm file has the duplicates marked by MarkDuplicates GATK tool (version gatk-4.2.6.0) 
 
-MARK_DUPLICATES=$(timeout 15 samtools view -f 0x400 ${enddir}/${filename}.sort.bam | head -n1)
-
-if [ -z "$MARK_DUPLICATES" ] || [ "${FORCE_MARK_DUPLICATES,,}" = "true" ];
+if [[ "${FORCE_NOT_MARK_DUPLICATES,,}" == "false" ]];
 then
-
-#####################
-### Mark Duplicates (bam file ordered by coordinate) and remove duplicates. Use MarkDuplicatesSpark if you want to run it in parallel.
-#####################
 
     echo "## START MARK DUPLICATES" 
 
@@ -533,8 +600,6 @@ fi
 ######################
 ### BaseRecalibrator before
 ######################
-
-## /vault/mauricio/bio_team/SV/sv-callers/workflow/data/fasta/hs37d5.fasta
 
 if [ "${BQSR,,}" = "true" ] ;
 then
@@ -577,8 +642,6 @@ then
     
 fi
 
-#rm ${enddir}/${filename}.sort.marked_duplicates.BQSR.bam
-
 ################################################################
 
 #######################
@@ -600,27 +663,29 @@ echo "Index done"
 
 ###############################################################
 
+######################
 # FINAL STATISTICS
+######################
 
 if [ "${FINAL_STATISTICS,,}" = "true" ];
 then
     
-    echo "## FINAL STATISTICS"
-
+    echo "# CALCULATING FINAL STATISTICS"
+ 
     cd ${enddir}
 
     if [ "${BQSR,,}" = "true" ];
     then
 
-        bash calculate_statistics.sh ${filename}.sort.marked_duplicates.BQSR 
+        bash ../calculate_statistics.sh ${filename}.sort.marked_duplicates.BQSR 
 
-        bash calculate_depth_coverage.sh ${filename}.sort.marked_duplicates.BQSR 
+        bash ../calculate_depth_coverage.sh ${filename}.sort.marked_duplicates.BQSR 
 
     else
 
-        bash calculate_statistics.sh ${filename}.sort.marked_duplicates 
+        bash ../calculate_statistics.sh ${filename}.sort.marked_duplicates 
 
-        bash calculate_depth_coverage.sh ${filename}.sort.marked_duplicates
+        bash ../calculate_depth_coverage.sh ${filename}.sort.marked_duplicates
     fi
 
     cd .. # Retrun to the original directory
@@ -642,32 +707,6 @@ fi
 ###############################################################
 ###############################################################
 
-### Optionals steps
-
-####################
-# Filter by Quality > 20 (-q)
-####################
-
-#echo 'Sart filter reads by quality' && /iso/tmp/samtoolsINST-1.3.1/bin/samtools view --threads 35 -b -q 20 ${enddir}/${filename}.sort.marked_duplicates*bam > ${enddir}/${filename}.sort.marked_duplicates*HQ.bam && echo 'End filter reads'
-
-####################################
-
-### Analysis of the recalibration step
-
-####################
-### BaseRecalibrator after
-######################
-
-#echo "Start BaseRecalibrator after" && /vault/mauricio/bio_team/gatk/gatk-4.2.6.0/./gatk BaseRecalibrator -I ${enddir}/${filename}.sort.marked_duplicates*HQ.bam -R ${REFERENCE_GENOME} --known-sites /vault/bio-scratch/arnau/structural_variants/gnomad_v2.1_sv.sites.vcf.gz -O ${enddir}/${filename}.recal_data.table2 && echo "End BaseRecalibrator after"
-
-######################
-### AnalyzeCovariates
-#####################
-
-#echo "Start AnalyzeCovariates" && /vault/mauricio/bio_team/gatk/gatk-4.2.6.0/./gatk AnalyzeCovariates -before ${enddir}/${filename}.recal_data.table1 -after ${enddir}/${filename}.recal_data.table2 -plots ${enddir}/${filename}.AnalyzeCovariates_last.pdf && echo "End AnalyzeCovariates"
-
-##############################################################
-
 # Remove temporary files
 
 N_TMP_FILES=$(ls ${TMP_DIR} | wc -l) # Set number of temporary files
@@ -676,7 +715,7 @@ if [ "${RM_TMP_FILES,,}" = "true" ];
 then
     if [[ $N_TMP_FILES -gt 0 ]];
     then
-        echo "Removing all temporary files" &>> ${enddir}/${filename}.log
+        echo "Removing all temporary files" 
         rm -r ${TMP_DIR}/*
     fi
 fi
@@ -691,5 +730,6 @@ done
 ###############################################################
 ###############################################################
 
-echo "##### END OF THE PIPELINE #####" >&3
+echo "### END OF THE PIPELINE"
+echo "DONE!" >&3
 echo "Check the results in '${enddir}' folder!" >&3
