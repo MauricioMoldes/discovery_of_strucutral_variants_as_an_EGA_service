@@ -308,7 +308,7 @@ echo "##### START PIPELINE #####"
 ## Check multi-sample bam file
 ####################
 
-# Finf if the bam is multi sample
+# Find if the bam is multi sample
 
 multi_sample=$(samtools view -H ${fullname} | grep "^@RG" | grep "SM" | sed 's/^.*\(SM:.*\).*$/\1/' | cut -f1 | sort | uniq | wc -l)
 
@@ -340,6 +340,14 @@ fi
 # Restart the set -e command
 set +e
 
+# Config parameters for logs (info. https://serverfault.com/questions/103501/how-can-i-fully-log-all-bash-scripts-actions)
+
+# Save original stdout and stderr file descriptors
+exec 3>&1 4>&2
+
+# Set up trap to restore original file descriptors on signal
+trap 'exec 2>&4 1>&3' 0 1 2 3
+
 ###############################################################
 ###############################################################
 
@@ -347,8 +355,6 @@ set +e
 
 for sample in `cat ${enddir}/list_of_sample.txt`
 do
-
-# Names, filenames and paths
 
 # Basename of the file
 filename=$(basename $sample .bam)
@@ -361,14 +367,6 @@ INDEX="${fullname}.bai"
 
 # Create error logs file
 LOG_FILE="${enddir}/${filename}.log"
-
-# Config parameters for logs (info. https://serverfault.com/questions/103501/how-can-i-fully-log-all-bash-scripts-actions)
-
-# Save original stdout and stderr file descriptors
-exec 3>&1 4>&2
-
-# Set up trap to restore original file descriptors on signal
-trap 'exec 2>&4 1>&3' 0 1 2 3
 
 # Redirect stdout to file.log and stderr to stdout
 exec 1>${LOG_FILE} 2>&1
@@ -391,13 +389,13 @@ trap 'handle_error' ERR
 echo -e "\n##### LOGS FILE FOR ${filename}.bam \n"
 
 # Everything below will go to the file '$sample.log':
-# Only work inside the loop (because is inside it)
+# Only work inside the loop (because is inside it)?
 # Adding '>&3' to the end of the command, the output goes to the console, not the 'log' file 
 # Other way: Adding '&>> ${enddir}/${filename}.log' to the end of each command
 
 ########################
 
-echo "## PROCESSING FILE: ${filename}.bam" >&3 # '>&3' to show to the console, if not to the log file
+echo "## PROCESSING FILE: ${filename}.bam" >&3 
 
 #########################
 # Clean sam (test)
@@ -441,7 +439,7 @@ fi
 # Index input bam file
 # Index file if its not already indexed
 if test -f "${INDEX}"; then
-    echo "${filename}.bam.bai already exists"
+    echo "# ${filename}.bam.bai already exists"
 else
     if [ "${INDEX_INPUT,,}" = "true" ];
     then
@@ -549,7 +547,7 @@ then
     
     # SAMTOOLS SORT
     #samtools sort -m 1500M --threads 35 -T ${TMP_DIR} ${fullname} --output-fmt BAM -o ${enddir}/${filename}.sort.bam
-    samtools sort ${fullname} -m 1500M --threads 35 -T ${TMP_DIR} -o ${enddir}/${filename}.sort.bam
+    samtools sort ${fullname} -m 1500M --threads 16 -T ${TMP_DIR} -o ${enddir}/${filename}.sort.bam
 
     
     # GATK SORT
@@ -690,17 +688,7 @@ then
 
     cd .. # Retrun to the original directory
 
-    # How many records are in the filtered BAM compared to the original? How many read pairs does this represent?
-    echo "How many records are in the filtered BAM compared to the original:" > ${enddir}/${filename}.records_last
-
-    if [ "${BQSR,,}" = "true" ];
-    then
-        echo "`samtools view -c ${fullname}` `samtools view -c ${enddir}/${filename}.sort.marked_duplicates.BQSR.bam`" | awk '{printf "%0.2f%%\n", 100*$2/$1}' >> ${enddir}/${filename}.records_last
-    else
-        echo "`samtools view -c ${fullname}` `samtools view -c ${enddir}/${filename}.sort.marked_duplicates.bam`" | awk '{printf "%0.2f%%\n", 100*$2/$1}' >> ${enddir}/${filename}.records_last
-    fi
-
-    echo "## FINAL STATISTICS DONE"
+   echo "## FINAL STATISTICS DONE"
 
 fi
 
@@ -730,6 +718,6 @@ done
 ###############################################################
 ###############################################################
 
-echo "### END OF THE PIPELINE"
 echo "DONE!" >&3
+echo "##### END OF THE PIPELINE #####" >&3
 echo "Check the results in '${enddir}' folder!" >&3
