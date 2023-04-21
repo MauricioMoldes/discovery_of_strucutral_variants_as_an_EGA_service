@@ -47,7 +47,7 @@ Version="v0.0.1"
 ###################
 
 # Setting variables values file
-conf_file='/slgpfs/projects/slc00/sv_data/src/conf.yaml' 
+conf_file='conf.yaml' 
 
 # Check if 'conf.yaml' exists in the path
 if [ -z $conf.yaml ]; then
@@ -56,14 +56,14 @@ if [ -z $conf.yaml ]; then
 fi
 
 # Path to Structural Variants known-sites
-known_sites="/slgpfs/projects/slc00/sv_data/data/gnomad_v2.1_sv.sites.vcf.gz"
+known_sites="../data/gnomad_v2.1_sv.sites.vcf.gz"
 
 # Path to calculate statistics and depth coverage programs
-calculate_statistics="/slgpfs/projects/slc00/sv_data/src/calculate_statistics.sh"
-calculate_depth_coverage="/slgpfs/projects/slc00/sv_data/src/calculate_depth_coverage.sh"
+calculate_statistics="calculate_statistics.sh"
+calculate_depth_coverage="calculate_depth_coverage.sh"
 
 # Path to yq program
-yq_path="/slgpfs/projects/slc00/sv_data/bin"
+yq_path="../bin"
 
 # Check if 'yq' exists in the path
 if [ -z ${yq_path}/yq ]; then
