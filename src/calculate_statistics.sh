@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Calculate final statistics for pre-process BAMs
 
 samtools flagstat $1.bam > statistics/$1.flagstat.statistics
