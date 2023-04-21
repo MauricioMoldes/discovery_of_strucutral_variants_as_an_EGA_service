@@ -7,7 +7,7 @@ version: '0.1'
 ###############################
 
 REQUIRED_SETTINGS:
-    SAMPLES: 'samples.csv' # Path to the input CSV file with the samples.
+    SAMPLES: 'samples_pre_process_bam.csv' # Path to the input CSV file with the samples.
     REFERENCE_GENOME: '/slgpfs/projects/slc00/sv_data/data/fasta/hs37d5.fasta' # Path to the reference genome of the input bam file. 
     TMP_DIR: '/slgpfs/projects/slc00/sv_data/tmp' # Set the path to the temprorary files directory.
 
