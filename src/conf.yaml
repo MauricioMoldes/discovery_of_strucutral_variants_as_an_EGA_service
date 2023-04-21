@@ -8,11 +8,11 @@ version: '0.1'
 
 REQUIRED_SETTINGS:
     SAMPLES: 'samples_pre_process_bam.csv' # Path to the input CSV file with the samples.
-    REFERENCE_GENOME: '/slgpfs/projects/slc00/sv_data/data/fasta/hs37d5.fasta' # Path to the reference genome of the input bam file. 
-    TMP_DIR: '/slgpfs/projects/slc00/sv_data/tmp' # Set the path to the temprorary files directory.
+    REFERENCE_GENOME: '../data/fasta/hs37d5.fasta' # Path to the reference genome of the input bam file. 
+    TMP_DIR: '../tmp' # Set the path to the temprorary files directory.
 
 PROGRAM_SETTINGS:
-    OUTPUT_DIR: '/slgpfs/projects/slc00/sv_data/results' # Path to the directory for the output files. (ie. directory path). Same directory as default. 
+    OUTPUT_DIR: '../results' # Path to the directory for the output files. (ie. directory path). Same directory as default. 
     SORT_THREADS: 8 # Set the number of additional threads to use for the 'samtools sort' function (-@/--threads) (ie. 4,8,16). Default 8 threads.
     SORT_MEM: '500M' # Set the maximum memory per thread to use in the 'samtools sort' function (-m) (ie. 750K, 500M, 1G). Default 500M.
 
